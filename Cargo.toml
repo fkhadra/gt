@@ -1,0 +1,7 @@
+[package]
+name = "gt"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+cliclack = "0.5.5"
