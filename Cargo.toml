@@ -5,4 +5,5 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.103"
+arboard = "3.6.1"
 cliclack = "0.5.5"

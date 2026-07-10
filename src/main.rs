@@ -1,11 +1,12 @@
 use std::{
     borrow::Cow,
     fs::canonicalize,
-    path::{self, Path, PathBuf, absolute},
-    process::{Command, exit},
+    path::{Path, PathBuf, absolute},
+    process::Command,
 };
 
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, anyhow};
+use arboard::Clipboard;
 use cliclack::{MultiSelect, input, intro, log, multiselect, note, outro, select};
 
 #[derive(Clone, PartialEq, Eq)]
@@ -35,13 +36,7 @@ fn main() -> Result<()> {
 }
 
 fn add_worktree_cmd() -> Result<()> {
-    let existing = list_worktree()?
-        .iter()
-        .map(|v| format!("{} {}", v.path, v.branch))
-        .collect::<Vec<String>>()
-        .join("\n");
-
-    note("Existing worktree", existing)?;
+    print_existing_worktrees("Existing worktrees")?;
 
     let worktree_name: String = input("What's the name of your worktree?")
         .placeholder("some-awesome-feature")
@@ -50,10 +45,30 @@ fn add_worktree_cmd() -> Result<()> {
 
     let wt_path = add_worktree(&worktree_name)?;
 
-    outro(format!(
-        "✅ Worktree successfully created at {}",
-        wt_path.to_string_lossy()
-    ))?;
+    let copied_to_clipboard = Clipboard::new()
+        .and_then(|mut v| v.set_text(wt_path.to_string_lossy()))
+        .is_ok();
+
+    let path = wt_path.to_string_lossy();
+    let message = if copied_to_clipboard {
+        format!("✅ Worktree successfully created. Path copied to clipboard 📋 {path}")
+    } else {
+        format!("✅ Worktree successfully created at {path}")
+    };
+    
+    outro(message)?;
+
+    Ok(())
+}
+
+fn print_existing_worktrees(title: &str) -> Result<()> {
+    let existing = list_worktree()?
+        .iter()
+        .map(|v| format!("{} {}", v.path, v.branch))
+        .collect::<Vec<String>>()
+        .join("\n");
+
+    note(title, existing)?;
 
     Ok(())
 }
@@ -72,6 +87,8 @@ fn delete_worktree_cmd() -> Result<()> {
     for v in selected {
         remove_worktree(&v)?;
     }
+
+    print_existing_worktrees("Remaining worktrees")?;
 
     outro("✅ Feels good to tidy up")?;
 
