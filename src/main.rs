@@ -7,7 +7,7 @@ use std::{
 
 use anyhow::{Result, anyhow};
 use arboard::Clipboard;
-use cliclack::{MultiSelect, input, intro, log, multiselect, note, outro, select};
+use cliclack::{MultiSelect, confirm, input, intro, log, multiselect, note, outro, select};
 
 #[derive(Clone, PartialEq, Eq)]
 enum Action {
@@ -55,7 +55,7 @@ fn add_worktree_cmd() -> Result<()> {
     } else {
         format!("✅ Worktree successfully created at {path}")
     };
-    
+
     outro(message)?;
 
     Ok(())
@@ -75,11 +75,11 @@ fn print_existing_worktrees(title: &str) -> Result<()> {
 
 fn delete_worktree_cmd() -> Result<()> {
     let existing = list_worktree()?;
-    let mut multi_select: MultiSelect<String> =
+    let mut multi_select: MultiSelect<Worktree> =
         multiselect("Select one or more worktree to remove");
 
     for wt in existing {
-        multi_select = multi_select.item(wt.path.clone(), wt.branch, wt.path);
+        multi_select = multi_select.item(wt.clone(), wt.branch, wt.path);
     }
 
     let selected = multi_select.interact()?;
@@ -103,11 +103,17 @@ fn validate_empty(value: &String) -> Result<(), &'static str> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Eq)]
 struct Worktree {
     path: String,
     _head: String,
     branch: String,
+}
+
+impl PartialEq for Worktree {
+    fn eq(&self, other: &Self) -> bool {
+        self.path == other.path
+    }
 }
 
 fn list_worktree() -> Result<Vec<Worktree>> {
@@ -118,9 +124,10 @@ fn list_worktree() -> Result<Vec<Worktree>> {
         .lines()
         .map(|v| {
             let mut parts = v.split_whitespace().map(String::from);
+            let path = parts.next().unwrap_or_default();
 
             Worktree {
-                path: parts.next().unwrap_or_default(),
+                path,
                 _head: parts.next().unwrap_or_default(),
                 branch: parts.next().unwrap_or_default(),
             }
@@ -128,6 +135,19 @@ fn list_worktree() -> Result<Vec<Worktree>> {
         .collect();
 
     Ok(data)
+}
+
+// best effort
+fn is_worktree_clean(path: &str) -> bool {
+    if let Ok(cmd) = Command::new("git")
+        .args(["status", "--porcelain"])
+        .current_dir(path)
+        .output()
+    {
+        return cmd.stdout.is_empty();
+    }
+
+    true
 }
 
 fn add_worktree(name: &str) -> Result<PathBuf> {
@@ -147,17 +167,30 @@ fn add_worktree(name: &str) -> Result<PathBuf> {
     }
 }
 
-fn remove_worktree(path: &str) -> Result<()> {
-    let cmd = Command::new("git")
-        .args(["worktree", "remove", path])
-        .output()?;
+fn remove_worktree(worktree: &Worktree) -> Result<()> {
+    let mut cmd = Command::new("git");
+    cmd.args(["worktree", "remove", &worktree.path]);
 
-    match cmd.status.success() {
-        true => Ok(()),
-        false => {
-            let output = String::from_utf8(cmd.stderr)?;
-            Err(anyhow!(output))
+    if !is_worktree_clean(&worktree.path) {
+        if !confirm(format!(
+            "Worktree {} is not clean, delete anyway?",
+            worktree.branch
+        ))
+        .interact()?
+        {
+            return Ok(());
         }
+
+        cmd.arg("-f");
+    }
+
+    let res = cmd.output()?;
+
+    if res.status.success() {
+        Ok(())
+    } else {
+        let output = String::from_utf8(res.stderr)?;
+        Err(anyhow!(output))
     }
 }
 
