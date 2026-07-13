@@ -7,7 +7,9 @@ use std::{
 
 use anyhow::{Result, anyhow};
 use arboard::Clipboard;
-use cliclack::{MultiSelect, confirm, input, intro, log, multiselect, note, outro, select};
+use cliclack::{
+    MultiSelect, confirm, input, intro, log, multiselect, note, outro, select, spinner,
+};
 use console::style;
 
 #[derive(Clone, PartialEq, Eq)]
@@ -17,11 +19,7 @@ enum Action {
 }
 
 fn main() -> Result<()> {
-    intro(
-        style("I see you are lazy as ever habibi 🙈")
-            .on_blue()
-            .black(),
-    )?;
+    intro(style("What can I do for you❓").on_blue().black())?;
 
     let selected = select("What do you want to do?")
         .item(Action::AddWorktree, "🌴 Create a new worktree", "")
@@ -48,7 +46,11 @@ fn add_worktree_cmd() -> Result<()> {
         .validate(validate_empty)
         .interact()?;
 
+    let spinner = spinner();
+    spinner.start("Adding worktree...");
+
     let wt_path = add_worktree(&worktree_name)?;
+    spinner.start("Adding worktree");
 
     let copied_to_clipboard = Clipboard::new()
         .and_then(|mut v| v.set_text(wt_path.to_string_lossy()))
@@ -88,10 +90,13 @@ fn delete_worktree_cmd() -> Result<()> {
     }
 
     let selected = multi_select.interact()?;
+    let spinner = spinner();
+    spinner.start("Cleaning worktrees...");
 
     for v in selected {
         remove_worktree(&v)?;
     }
+    spinner.stop("Cleaning worktrees");
 
     print_existing_worktrees("Remaining worktrees")?;
 
