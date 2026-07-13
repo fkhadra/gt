@@ -2,8 +2,23 @@
 name = "gt"
 version = "0.1.0"
 edition = "2024"
+description = "Lazy git worktree"
+repository = "https://github.com/fkhadra/gt"
+homepage = "https://github.com/fkhadra/gt"
+
 
 [dependencies]
 anyhow = "1.0.103"
 arboard = "3.6.1"
 cliclack = "0.5.5"
+console = "0.16.4"
+
+[profile.release]
+strip = true      
+opt-level = "z"   
+lto = true       
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"

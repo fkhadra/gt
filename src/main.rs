@@ -8,6 +8,7 @@ use std::{
 use anyhow::{Result, anyhow};
 use arboard::Clipboard;
 use cliclack::{MultiSelect, confirm, input, intro, log, multiselect, note, outro, select};
+use console::style;
 
 #[derive(Clone, PartialEq, Eq)]
 enum Action {
@@ -16,7 +17,11 @@ enum Action {
 }
 
 fn main() -> Result<()> {
-    intro("I see you are lazy as ever habibi 🙈")?;
+    intro(
+        style("I see you are lazy as ever habibi 🙈")
+            .on_blue()
+            .black(),
+    )?;
 
     let selected = select("What do you want to do?")
         .item(Action::AddWorktree, "🌴 Create a new worktree", "")

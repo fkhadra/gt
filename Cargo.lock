@@ -218,6 +218,7 @@ dependencies = [
  "anyhow",
  "arboard",
  "cliclack",
+ "console",
 ]
 
 [[package]]
